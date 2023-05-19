@@ -1,0 +1,54 @@
+{
+  "name": "@cailiao/watermark",
+  "version": "0.1.0",
+  "description": "一个水印插件。(A watermark plugin.)",
+  "type": "module",
+  "module": "dist/watermark.esm.browser.min.js",
+  "main": "dist/watermark.cjs.browser.min.js",
+  "entry": ["index.ts"],
+  "outfile": "watermark",
+  "keywords": [
+    "watermark"
+  ],
+  "author": "cailiao(Eleg-i)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eleg-i/watermark.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Eleg-i/watermark/issues"
+  },
+  "homepage": "https://github.com/Eleg-i/watermark/#readme",
+  "license": "ISC",
+  "scripts": {
+    "build-watch": "node ./script/esbuild.watch.js",
+    "build": "node ./script/esbuild.js",
+    "lint": "prettier --check src test script & eslint --ext .js,.vue src test script",
+    "lint:fix": "prettier --write src test script & eslint --fix --ext .js,.vue src test script",
+    "prepare": "husky install",
+    "prepublishOnly": "npm run build -s",
+    "patch": "npm version patch && npm i",
+    "minor": "npm version minor && npm i",
+    "major": "npm version major && npm i",
+    "publish": "npm publish",
+    "postpublish": "git push origin master --follow-tags",
+    "toc": "doctoc --github --title \"# Changelog\" CHANGELOG.md"
+  },
+  "devDependencies": {
+    "@babel/core": "latest",
+    "@babel/eslint-parser": "latest",
+    "@babel/plugin-syntax-import-assertions": "latest",
+    "@babel/preset-env": "latest",
+    "@babel/preset-typescript": "^7.21.5",
+    "@typescript-eslint/eslint-plugin": "^5.59.6",
+    "@typescript-eslint/parser": "^5.59.6",
+    "eslint": "^8.40.0",
+    "eslint-config-standard": "latest",
+    "eslint-plugin-html": "latest",
+    "husky": "latest",
+    "lint-staged": "latest"
+  },
+  "dependencies": {
+    "@cailiao/watch-dom": "^0.1.2"
+  }
+}

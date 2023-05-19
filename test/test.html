@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+      .content p {
+        background-color: blue;
+        color: #fff;
+      }
+
+    </style>
+  </head>
+
+  <body>
+    <div id="container" style="position: relative;">
+      <div class="content" >        
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>        
+      </div>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import Watermark from '../dist/watermark.esm.browser.min.js'
+      // console.log(Watermark)
+      const watermark = new Watermark({ offset: [50, 30], gap: 20, rotate: -15, font: { color: 'skyblue' } }),
+            { canvas } = watermark,
+            container = document.querySelector('#container')
+
+      canvas.style.border = '1px solid #000'
+      document.body.append(canvas)
+      watermark.mount(container)
+    </script>
+  </body>
+
+</html>

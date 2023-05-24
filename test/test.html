@@ -8,34 +8,93 @@
     <title>Document</title>
     <style>
       .content p {
-        background-color: blue;
+        background-color: rgb(167, 167, 167);
         color: #fff;
+      }
+
+      .color {
+        background-color: hsla(0, 0%, 54.1%, 0.5);
       }
 
     </style>
   </head>
 
   <body>
-    <div id="container" style="position: relative;">
-      <div class="content" >        
+    <div>其它元素</div>
+    <div id="container">
+      <div class="content">
         <p>内容内容内容内容内容内容内容内容</p>
         <p>内容内容内容内容内容内容内容内容</p>
         <p>内容内容内容内容内容内容内容内容</p>
-        <p>内容内容内容内容内容内容内容内容</p>        
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
+        <p>内容内容内容内容内容内容内容内容</p>
       </div>
     </div>
-    <canvas id="canvas"></canvas>
+
+    <button>注销</button>
+
+    <div style="position: relative;">
+      <p>其它内容</p>
+      <p>其它内容</p>
+      <div id="container2">
+        <div class="content">
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+          <p>内容内容内容内容内容内容内容内容</p>
+        </div>
+      </div>
+    </div>
+
+    <button>注销</button>
+
+    <p class="color">color</p>
 
     <script type="module">
       import Watermark from '../dist/watermark.esm.browser.min.js'
-      // console.log(Watermark)
-      const watermark = new Watermark({ offset: [50, 30], gap: 20, rotate: -15, font: { color: 'skyblue' } }),
-            { canvas } = watermark,
-            container = document.querySelector('#container')
+
+      const watermark = new Watermark({
+        content: ['你好', '我好', '大家好'],
+        // gap: 50,
+        rotate: -45,
+        // offset: [100, 80],
+        image: { src: './doge.png', offset: [-0, 0] }
+      }),
+        { canvas } = watermark,
+        container = document.querySelector('#container'),
+        container2 = document.querySelector('#container2')
 
       canvas.style.border = '1px solid #000'
       document.body.append(canvas)
       watermark.mount(container)
+      watermark.mount(container2)
     </script>
   </body>
 

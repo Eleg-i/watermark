@@ -1,5 +1,5 @@
-import packageJson from '../package.json' assert { type: 'json' }
 import esbuild from 'esbuild'
+import packageJson from '../package.json' assert { type: 'json' }
 
 const { entry, outfile } = packageJson
 
@@ -14,21 +14,22 @@ function build(platform) {
 
 /**
  * 根据模块类型构建
- * @param {Stirng} format 构建的模块类型
+ * @param {String} format 构建的模块类型
  * @param {String} platform 构建的平台类型
  */
 function buildInFormat(format, platform) {
   esbuild
     .build({
-      entryPoints: entry,
       bundle: true,
+      entryPoints: entry,
+      format,
+      minify: true,
       outfile: `dist/${outfile}.${format}.${platform}.min.js`,
       platform,
-      minify: true,
-      format
+      target: 'esnext'
     })
     .catch(() => process.exit(1))
 }
 
-build('node')
+// build('node')
 build('browser')

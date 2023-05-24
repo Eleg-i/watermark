@@ -5,7 +5,9 @@
   "type": "module",
   "module": "dist/watermark.esm.browser.min.js",
   "main": "dist/watermark.cjs.browser.min.js",
-  "entry": ["index.ts"],
+  "entry": [
+    "index.ts"
+  ],
   "outfile": "watermark",
   "keywords": [
     "watermark"
@@ -42,6 +44,7 @@
     "@babel/preset-typescript": "^7.21.5",
     "@typescript-eslint/eslint-plugin": "^5.59.6",
     "@typescript-eslint/parser": "^5.59.6",
+    "esbuild": "^0.16.17",
     "eslint": "^8.40.0",
     "eslint-config-standard": "latest",
     "eslint-plugin-html": "latest",

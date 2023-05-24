@@ -1,31 +1,11 @@
-/**
- * Base size of the canvas, 1 for parallel layout and 2 for alternate layout
- * Only alternate layout is currently supported
- */
-const baseSize = 1,
-      fontGap = 3
+/* eslint-disable valid-jsdoc */
+import patch from '@cailiao/watch-dom'
 
-// export default interface Watermark {
-//   new(options:{
-//   el: Element,
-//   zIndex?: number,
-//   rotate?: number,
-//   width?: number,
-//   height?: number,
-//   image?: string,
-//   content?: string | string[],
-//   font?: {
-//     color?: string,
-//     fontSize?: number | string,
-//     fontWeight?: 'normal' | 'light' | 'weight' | number,
-//     fontStyle?: 'none' | 'normal' | 'italic' | 'oblique',
-//     fontFamily?: string;
-//   },
-//   className?: string,
-//   gap?: [number, number],
-//   offset?: [number, number]
-//   }): object
-// }
+interface Wait extends Promise<string> {
+  resolve?: (value: string) => void
+}
+
+const { max, ceil, cos, sin, abs } = Math
 
 /**
  * 水印
@@ -33,20 +13,34 @@ const baseSize = 1,
 export default class Watermark {
   className: string
   color: string
-  content: string
-  el?: Element
+  content: string[] = ['@cailiao/watermark']
+  el?: HTMLElement
   fontFamily: string
   fontSize: string
   fontStyle: string
   fontWeight: string
-  image: string
+  lineHeight = '20px'
+  image: {
+    src: string
+    // 图像水印相对于默认位置的偏移量，单位为px，第一个元素为水平偏移量，第二个元素为垂直偏移量（旋转后）
+    offset: [number, number]
+  }
   angle: number
-  offset: number[]
-  rotate: number
-  gap: number
-  zIndex: number
-  canvas: Element
-  dataURL: string
+  // 水印之间的相对偏移量，单位为px，第一个元素为同一行水平偏移量，第二个元素为同一列垂直偏移量（旋转后）
+  offset: number[] = [100, 100]
+  rotate = -37
+  // 同一行水印之间的间距，单位为px
+  gap = 100
+  zIndex = 999
+  canvas: HTMLCanvasElement
+  #dataURL: string
+  #waitDataURL: Wait
+  #img: HTMLImageElement
+  #mounted = false
+  #container: HTMLDivElement
+  #unWatch: () => void
+  sinA: number
+  cosA: number
 
   /**
    * 构造器，初始化一个水印图片
@@ -54,151 +48,150 @@ export default class Watermark {
    */
   constructor(
     {
-      zIndex = 999,
-      rotate = -37,
-      image,
-      content = '@cailiao/watermark',
-      font = {},
       className,
-      gap = 50,
-      offset = [50, 50]
+      content,
+      font = {},
+      gap,
+      image,
+      lineHeight,
+      offset,
+      rotate,
+      zIndex
     }: {
-      zIndex: number
-      rotate?: number
-      image?: string
+      className?: string
       content?: string | string[]
       font?: {
         color?: string
-        fontSize?: number | string
-        fontWeight?: 'normal' | 'light' | 'weight' | number
-        fontStyle?: 'none' | 'normal' | 'italic' | 'oblique'
         fontFamily?: string
+        fontSize?: string
+        fontStyle?: 'none' | 'normal' | 'italic' | 'oblique'
+        fontWeight?: 'normal' | 'light' | 'weight' | number
       }
-      className?: string
       gap?: number
+      image?: string | object
+      lineHeight?: string
       offset?: [number, number]
+      rotate?: number
+      zIndex?: number
     } = {
-      content: '@cailiao/watermark',
-      font: {},
-      gap: 50,
-      offset: [50, 50],
-      rotate: -37,
-      zIndex: 999
+      font: {}
     }
   ) {
     const {
-      color = 'rgba(0,0,0,.15)',
+      color = 'hsla(0, 0%, 50%, 0.5)',
       fontSize = 16,
       fontWeight = 'normal',
       fontStyle = 'normal',
       fontFamily = 'sans-serif'
-    } = font
+    } = font,
+          args = {
+            className,
+            color,
+            content,
+            fontFamily,
+            fontSize,
+            fontStyle,
+            fontWeight,
+            gap,
+            image,
+            lineHeight,
+            offset,
+            rotate,
+            zIndex
+          }
 
-    Object.assign(this, {
-      className,
-      color,
-      content,
-      fontFamily,
-      fontSize,
-      fontStyle,
-      fontWeight,
-      gap,
-      image,
-      offset,
-      rotate,
-      zIndex
-    })
+    // 处理依赖
+    if (!Element.prototype.$watch || !Element.prototype.$watchBox) patch()
+
+    // 处理image参数
+    if (image) {
+      this.content = []
+      if (typeof image === 'string') args.image = { src: image, offset: [0] }
+    }
+
+    // 处理content参数
+    if (content && typeof content === 'string') {
+      const newContent = content.replace(/\\n+/g, '\n')
+
+      args.content = newContent.split('\n')
+    }
+
+    for (const key in args) {
+      const value = args[key]
+
+      if (value !== undefined) this[key] = value
+    }
+
+    // 计算弧度
+    const { rotate: newRotate } = this,
+          angle = -newRotate / 180 * Math.PI
+
+    this.angle = angle
+    this.sinA = newRotate % 180 ? abs(sin(angle)) : 0
+    this.cosA = newRotate === 0 || newRotate % 90 ? abs(cos(angle)) : 0
 
     this.renderWatermark()
   }
 
   /** */
-  appendWatermark(base64Url: string, markWidth: number, containerRef, watermarkRef) {
-    if (containerRef.current && watermarkRef.current) {
-      // stopObservation.current = true
-      // watermarkRef.current.setAttribute(
-      //   'style',
-      //   getStyleStr({
-      //     ...getMarkStyle(),
-      //     backgroundImage: `url('${base64Url}')`,
-      //     backgroundSize: `${(gapX + markWidth) * baseSize}px`
-      //   })
-      // )
-      containerRef.current?.append(watermarkRef.current)
-      // Delayed execution
-      setTimeout(() => {
-        //   stopObservation.current = false
-      })
-    }
-  }
-
-  /** */
-  destroy(id?: string) {
-    const { el, mounted } = this
-
-    if (id) {
-      // watermarkRef.current.remove()
-      // watermarkRef.current = undefined
-    }
+  destroy(unWatch: () => void, unWatchResize: () => void, container: HTMLDivElement) {
+    unWatch()
+    unWatchResize()
+    container.remove()
   }
 
   /** */
   drawText({
-    canvas,
-    ctx,
-    canvasWidth,
-    canvasHeight,
-    rotatedBlockWidth,
-    rotatedBlockHeight,
+    absLineHeight,
     blockWidth,
-    blockHeight
+    canvas,
+    canvasWidth,
+    ctx
   }: {
-    canvas: HTMLCanvasElement
-    ctx: CanvasRenderingContext2D
-    canvasWidth: number
-    canvasHeight: number
-    rotatedBlockWidth: number
-    rotatedBlockHeight: number
+    absLineHeight: number
     blockWidth: number
-    blockHeight: number
+    canvas: HTMLCanvasElement
+    canvasWidth: number
+    ctx: CanvasRenderingContext2D
   }) {
-    const { offset, gap } = this,
-          [offsetWidth, offsetHeight] = offset
+    const { offset } = this,
+          [offsetX, offsetY] = offset,
+          transfOffsetX = ceil((offsetX % canvasWidth + canvasWidth) % canvasWidth),
+          transfOffsetY = ceil(offsetY)
 
-    // rotateWatermark(ctx, rotatedBlockWidth / 2, rotatedBlockHeight / 2, rotate)
-    this.fillTexts(ctx, 0, 0)
-    ctx.restore()
-    ctx.translate(offsetWidth, offsetHeight)
     ctx.save()
-    // rotateWatermark(ctx, rotatedBlockWidth / 2, rotatedBlockHeight / 2, rotate)
-    this.fillTexts(ctx, 0, 0)
+
+    // 先于原点绘制文本
+    ctx.translate(blockWidth / 2, 0)
+    this.fillTexts({ ctx, absLineHeight })
+
+    ctx.translate(transfOffsetX, transfOffsetY)
+    this.fillTexts({ ctx, absLineHeight })
+
+    ctx.translate(-canvasWidth, 0)
+    this.fillTexts({ ctx, absLineHeight })
     ctx.restore()
-    ctx.translate(-(gap + blockWidth), 0)
-    this.fillTexts(ctx, 0, 0)
-    const clipLeft = ctx.getImageData(0, 0, canvasWidth / 4, canvasHeight),
-          clipRight = ctx.getImageData(canvasWidth / 4, 0, canvasWidth * 3 / 4, canvasHeight)
 
-    ctx.putImageData(clipRight, 0, 0)
-    ctx.putImageData(clipLeft, canvasWidth * 3 / 4, 0)
+    // /* 将左四分之一的图形移动至右方，然后再将上四分之一的图形移动至下方 */
+    // const clipLeft = ctx.getImageData(0, 0, ceil(canvasWidth / 4), canvasHeight),
+    //       clipRight = ctx.getImageData(ceil(canvasWidth / 4), 0, ceil(canvasWidth * 3 / 4), canvasHeight)
 
-    const clipTop = ctx.getImageData(0, 0, canvasWidth, canvasHeight / 4),
-          clipBottom = ctx.getImageData(0, canvasHeight / 4, canvasWidth, canvasHeight * 3 / 4)
+    // ctx.putImageData(clipRight, 0, 0)
+    // ctx.putImageData(clipLeft, ceil(canvasWidth * 3 / 4), 0)
 
-    ctx.putImageData(clipBottom, 0, 0)
-    ctx.putImageData(clipTop, 0, canvasHeight * 3 / 4)
+    // const clipTop = ctx.getImageData(0, 0, canvasWidth, ceil(canvasHeight / 4)),
+    //       clipBottom = ctx.getImageData(0, ceil(canvasHeight / 4), canvasWidth, ceil(canvasHeight * 3 / 4))
 
-    /** Fill the interleaved text after rotation */
-    // rotateWatermark(ctx, alternateRotateX, alternateRotateY, this.rotate)
-    // this.fillTexts(ctx, alternateDrawX, alternateDrawY, drawWidth, drawHeight)
-    console.log(canvas.toDataURL())
-    this.dataURL = canvas.toDataURL()
-    // this.appendWatermark(canvas.toDataURL(), markWidth)
+    // ctx.putImageData(clipBottom, 0, 0)
+    // ctx.putImageData(clipTop, 0, ceil(canvasHeight * 3 / 4))
+
+    this.setDataUrl(canvas.toDataURL())
   }
 
   /**
    * 绘制文本
    */
-  fillTexts(ctx: CanvasRenderingContext2D, drawX: number, drawY: number) {
+  fillTexts({ ctx, absLineHeight }: { ctx: CanvasRenderingContext2D; absLineHeight: number }) {
     const ratio = devicePixelRatio,
           mergedFontSize = Number(this.fontSize) * ratio,
           { content, fontFamily } = this
@@ -208,183 +201,345 @@ export default class Watermark {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
 
-    const contents = Array.isArray(content) ? content : [content]
+    content?.forEach((text, index) => ctx.fillText(text, 0, 0 + index * absLineHeight * ratio))
+  }
 
-    contents?.forEach((text, index) => {
-      ctx.translate(ctx.measureText(text).width / 2, 0)
+  /** */
+  async drawImage({
+    absLineHeight,
+    blockWidth,
+    canvasHeight,
+    canvasWidth,
+    ctx,
+    imgWidth,
+    imgHeight
+  }: {
+    absLineHeight: number
+    blockWidth: number
+    canvas: HTMLCanvasElement
+    canvasHeight: number
+    canvasWidth: number
+    ctx: CanvasRenderingContext2D
+    imgWidth: number
+    imgHeight: number
+  }) {
+    const { offset, image } = this,
+          img = this.#img,
+          mergedFontSize = Number(this.fontSize) * devicePixelRatio,
+          [imgOffsetX = 0, imgOffsetY = 0] = image.offset,
+          transfImgOffsetX = ceil((imgOffsetX % canvasWidth + canvasWidth) % canvasWidth),
+          transfImgOffsetY = ceil((imgOffsetY % canvasHeight + canvasHeight) % canvasHeight),
+          [offsetX, offsetY] = offset,
+          transfOffsetX = ceil((offsetX % canvasWidth + canvasWidth) % canvasWidth),
+          transfOffsetY = ceil(offsetY),
+          imgOffsetHeight = imgHeight + absLineHeight - mergedFontSize
 
-      ctx.fillText(text, drawX, drawY + index * (mergedFontSize + fontGap * ratio))
-    })
+    // debugger
+    /**
+     * 先于居中绘制图片
+     * 然后根据偏移量进行偏移
+     * 然后计算根据canvas的宽高计算偏移量
+     */
+    ctx.translate(0, imgOffsetHeight)
+    ctx.save()
+    ctx.translate(blockWidth / 2 - imgWidth / 2, -imgOffsetHeight)
+    ctx.translate(transfImgOffsetX, transfImgOffsetY)
+    ctx.drawImage(img, 0, 0, imgWidth, imgHeight)
+    ctx.drawImage(img, -canvasWidth, 0, imgWidth, imgHeight)
+    ctx.drawImage(img, 0, -canvasHeight, imgWidth, imgHeight)
+    ctx.drawImage(img, -canvasWidth, -canvasHeight, imgWidth, imgHeight)
+
+    ctx.translate(transfOffsetX, transfOffsetY)
+    ctx.drawImage(img, 0, 0, imgWidth, imgHeight)
+    ctx.drawImage(img, -canvasWidth, 0, imgWidth, imgHeight)
+    ctx.drawImage(img, 0, -canvasHeight, imgWidth, imgHeight)
+    ctx.drawImage(img, -canvasWidth, -canvasHeight, imgWidth, imgHeight)
+    ctx.restore()
   }
 
   /**
    * 计算水印宽度
    */
-  getMarkSize(ctx: CanvasRenderingContext2D) {
-    const { fontSize, content, image, fontFamily, rotate } = this,
-          angle = -rotate / 180 * Math.PI
+  async getCanvasSize(ctx: CanvasRenderingContext2D) {
+    const { textblockWidth, textblockHeight, absLineHeight } = await this.getContentTextSize(ctx),
+          { imgWidth = 0, imgHeight = 0 } = this.image ? await this.getImgSize() : {}
+
+    return {
+      blockWidth: max(textblockWidth, imgWidth),
+      blockHeight: textblockHeight + imgHeight,
+      textblockWidth,
+      absLineHeight,
+      imgWidth,
+      imgHeight
+    } as {
+      blockWidth: number
+      blockHeight: number
+      textblockWidth: number
+      absLineHeight: number
+      imgWidth: number
+      imgHeight: number
+    }
+  }
+
+  /** */
+  async getImgSize() {
+    const { image } = this,
+          img = new Image(),
+          waitOnLoad = new Promise((resolve, reject) => {
+            img.addEventListener('load', resolve)
+            img.addEventListener('error', reject)
+          })
+
+    img.crossOrigin = 'anonymous'
+    img.referrerPolicy = 'no-referrer'
+    img.src = image.src
+    this.#img = img
+
+    await waitOnLoad
+
+    return { imgWidth: img.width, imgHeight: img.height } as {
+      imgWidth: number
+      imgHeight: number
+    }
+  }
+
+  /** */
+  async getContentTextSize(ctx: CanvasRenderingContext2D) {
+    const { fontSize, content, fontFamily, lineHeight } = this
     var width = 0,
         height = 0,
-        rotatedBlockWidth,
-        rotatedBlockHeight
+        absLineHeight: number
 
-    this.angle = angle
-    if (!image && ctx.measureText) {
-      ctx.font = `${Number(fontSize)}px ${fontFamily}`
-      const contents = Array.isArray(content) ? content : [content],
-            widths = contents.map(text => ctx.measureText(text).width)
+    const pEl = document.createElement('p')
 
-      width = Math.ceil(Math.max(...widths))
-      height = Number(fontSize) * contents.length + (contents.length - 1) * fontGap
-      rotatedBlockWidth = Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * height
-      rotatedBlockHeight = Math.abs(Math.sin(angle)) * width + Math.abs(Math.cos(angle)) * height
+    pEl.style.lineHeight = lineHeight
+    pEl.innerText = content.join('')
+
+    queueMicrotask(() => document.body.appendChild(pEl))
+    // 获取行高的绝对值
+    absLineHeight = await new Promise(resolve => {
+      const unWatch = pEl.$watchBox(record => {
+        resolve(record[0].contentRect.height)
+        unWatch()
+        pEl.remove()
+      })
+    })
+
+    ctx.font = `${Number(fontSize)}px ${fontFamily}`
+
+    const widths = content.map(text => ctx.measureText(text).width)
+
+    width = ceil(max(...widths))
+    height = absLineHeight * content.length
+
+    return { textblockWidth: width, textblockHeight: height, absLineHeight } as {
+      textblockWidth: number
+      textblockHeight: number
+      absLineHeight: number
     }
-
-    return { blockWidth: width, blockHeight: height, rotatedBlockWidth, rotatedBlockHeight } as const
   }
 
   /** */
-  getMarkStyle() {
-    const { offsetLeft, zIndex, gapXCenter, offsetTop, gapYCenter } = this,
-          markStyle = {
-            backgroundRepeat: 'repeat',
-            height: '100%',
-            left: '0',
-            pointerEvents: 'none',
-            position: 'absolute',
-            top: '0',
-            width: '100%',
-            zIndex
-          }
-
-    /** Calculate the style of the offset */
-    let positionLeft = offsetLeft - gapXCenter,
-        positionTop = offsetTop - gapYCenter
-
-    if (positionLeft > 0) {
-      markStyle.left = `${positionLeft}px`
-      markStyle.width = `calc(100% - ${positionLeft}px)`
-      positionLeft = 0
-    }
-
-    if (positionTop > 0) {
-      markStyle.top = `${positionTop}px`
-      markStyle.height = `calc(100% - ${positionTop}px)`
-      positionTop = 0
-    }
-
-    markStyle.backgroundPosition = `${positionLeft}px ${positionTop}px`
-
-    return markStyle
-  }
-
-  /** */
-  renderWatermark() {
+  async renderWatermark() {
     const canvas = document.createElement('canvas'),
           ctx = canvas.getContext('2d'),
-          { offset, rotate, image, gap } = this,
-          [offsetWidth, offsetHeight] = offset
+          { offset, image, gap } = this,
+          [, offsetY] = offset
 
     this.canvas = canvas
     if (ctx) {
-      // if (!watermarkRef.current) {
-      //   watermarkRef.current = document.createElement('div')
-      // }
-
       const ratio = devicePixelRatio,
-            { blockWidth, blockHeight, rotatedBlockWidth, rotatedBlockHeight } = this.getMarkSize(ctx),
+            { blockWidth, absLineHeight, imgWidth, imgHeight } = await this.getCanvasSize(ctx),
             canvasWidth = (blockWidth + gap) * ratio,
-            canvasHeight = 2 * offsetHeight * ratio
+            canvasHeight = ceil(2 * offsetY * ratio)
 
-      canvas.setAttribute('width', `${canvasWidth * baseSize}px`)
-      canvas.setAttribute('height', `${canvasHeight * baseSize}px`)
+      canvas.setAttribute('width', `${canvasWidth}px`)
+      canvas.setAttribute('height', `${canvasHeight}px`)
 
-      const drawX = 0,
-            drawY = 0,
-            drawWidth = 0 * ratio,
-            drawHeight = 0 * ratio,
-            rotateX = (drawWidth + 0 * ratio) / 2,
-            rotateY = (drawHeight + 0 * ratio) / 2,
-        /** Alternate drawing parameters */
-            alternateDrawX = drawX + canvasWidth,
-            alternateDrawY = drawY + canvasHeight,
-            alternateRotateX = rotateX + canvasWidth,
-            alternateRotateY = rotateY + canvasHeight
-
-      ctx.save()
-
-      if (image) {
-        const img = new Image()
-
-        img.onload = () => {
-          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
-          /** Draw interleaved pictures after rotation */
-          ctx.restore()
-          rotateWatermark(ctx, alternateRotateX, alternateRotateY, rotate)
-          ctx.drawImage(img, alternateDrawX, alternateDrawY, drawWidth, drawHeight)
-          console.log(canvas.toDataURL())
-          // this.appendWatermark(canvas.toDataURL(), markWidth)
-        }
-
-        img.onerror = () =>
-          this.drawText(
-            canvas,
-            ctx,
-            drawX,
-            drawY,
-            drawWidth,
-            drawHeight,
-            alternateRotateX,
-            alternateRotateY,
-            alternateDrawX,
-            alternateDrawY
-            // markWidth
-          )
-        img.crossOrigin = 'anonymous'
-        img.referrerPolicy = 'no-referrer'
-        img.src = image
-      } else {
-        this.drawText({
-          canvas,
-          ctx,
-          rotatedBlockWidth,
-          rotatedBlockHeight,
-          canvasWidth,
-          canvasHeight,
+      if (image)
+        this.drawImage({
+          absLineHeight,
           blockWidth,
-          blockHeight
+          canvas,
+          canvasHeight,
+          canvasWidth,
+          ctx,
+          imgHeight,
+          imgWidth
         })
-      }
+
+      this.drawText({
+        absLineHeight,
+        blockWidth,
+        canvas,
+        canvasWidth,
+        ctx
+      })
     }
   }
 
   /** */
-  onMutate(mutations: MutationRecord[]) {}
+  async getDataUrl() {
+    var result
+    const dataURL = this.#dataURL
+
+    if (dataURL) result = dataURL
+    else {
+      const waitDataURL = this.#waitDataURL
+
+      if (waitDataURL) result = waitDataURL
+      else {
+        let resolve
+
+        const wait: Wait = new Promise(res => {
+          resolve = res
+        })
+
+        wait.resolve = resolve
+        this.#waitDataURL = wait
+        result = wait
+      }
+    }
+
+    return result
+  }
+
+  /** */
+  async setDataUrl(newDataURL) {
+    if (!this.#dataURL && this.#waitDataURL) {
+      this.#waitDataURL.resolve(newDataURL)
+      this.#waitDataURL = null
+    }
+
+    this.#dataURL = newDataURL
+  }
+
+  /** */
+  tamperProofing(rootEl: HTMLElement, closure: { container: HTMLDivElement; originContainer: HTMLDivElement }) {
+    var { container, originContainer } = closure,
+        timer1: number,
+        timer2: number,
+        unWatchContainer: () => void
+
+    /** */
+    function reMount() {
+      container.remove()
+      container = closure.container = originContainer.cloneNode(true) as HTMLDivElement
+      rootEl.insertAdjacentElement('afterbegin', container)
+      unWatchContainer(), watchContainer(container)
+    }
+
+    /** */
+    function watchContainer(el) {
+      unWatchContainer = el.$watch(
+        record => {
+          record
+          // debugger
+
+          // 节流
+          clearTimeout(timer2)
+          // 监视container的属性是否发生变化
+          timer2 = setTimeout(() => reMount(), 35)
+        },
+        { subtree: true, childList: true, attributes: true, attributeOldValue: true }
+      )
+    }
+
+    const unWatchRootEL = rootEl.$watch(
+      () => {
+        // 节流
+        clearTimeout(timer1)
+        timer1 = setTimeout(() => {
+          // 监视 container 是否存在于 rootEl 中, 或者判断首元素是否为 container
+          if (!rootEl.contains(container) || rootEl.firstElementChild !== container) reMount()
+        }, 35)
+      },
+      { childList: true }
+    )
+
+    watchContainer(container)
+
+    return () => {
+      unWatchRootEL()
+      unWatchContainer()
+      container = null
+    }
+  }
+
+  /**
+   * 在检测到rootEl的大小发生变化时重调用 createContianer 方法
+   */
+  resize(rootEl, closure) {
+    var container = closure.container,
+        isImmideate = true,
+        timer: number
+    const { cosA, sinA } = this,
+          unWatchResize = rootEl.$watchBox(records => {
+            // 节流
+            clearTimeout(timer)
+            timer = setTimeout(() => {
+              if (!isImmideate) {
+                const { width, height } = records[0].contentRect
+
+                if (width && height) {
+                  container.style.setProperty('--container-height', `${height * cosA + width * sinA}px`)
+                  container.style.setProperty('--container-width', `${height * sinA + width * cosA}px`)
+                }
+              }
+            }, 35)
+
+            isImmideate = false
+          })
+
+    return unWatchResize
+  }
 
   /**挂载水印元素 */
-  mount(el) {
-    const { dataURL, rotate, angle } = this,
+  async mount(rootEl: HTMLElement) {
+    const closure: { container: HTMLDivElement; originContainer: HTMLDivElement } = await this.createContianer(rootEl),
+          unWatch = this.tamperProofing(rootEl, closure),
+          unWatchResize = this.resize(rootEl, closure)
+
+    return this.destroy.bind(null, unWatch, unWatchResize, closure)
+  }
+
+  /** */
+  async createContianer(rootEl) {
+    const { rotate, cosA, sinA } = this,
           container = document.createElement('div'),
           watermark = document.createElement('div'),
+          beforeElHeight = getBeforeElementHeight(rootEl),
+          commonStyle = {
+            'clip-path': 'none',
+            display: 'block',
+            margin: 0,
+            visibility: 'visible',
+            'z-index': Number.MAX_SAFE_INTEGER
+          },
           containerStyle = {
+            ...commonStyle,
+            '--container-height': `${rootEl.offsetHeight * cosA + rootEl.offsetWidth * sinA}px`,
+            '--container-width': `${rootEl.offsetHeight * sinA + rootEl.offsetWidth * cosA}px`,
+            height: `${rootEl.offsetHeight}px`,
+            opacity: 1,
             overflow: 'hidden',
+            'pointer-events': 'none',
             position: 'absolute',
-            zIndex: 999,
-            top: 0,
-            width: '100%',
-            height: `${el.offsetHeight}px`,
-            pointerEvents: 'none'
+            transform: `${beforeElHeight ? `translateY(-${beforeElHeight})` : ''}`,
+            width: `${rootEl.offsetWidth}px`
           },
           watermarkStyle = {
-            backgroundImage: `url(${dataURL})`,
-            height: `${el.offsetHeight * Math.cos(angle) + el.offsetWidth * Math.sin(angle)}px`,
+            ...commonStyle,
+            'background-image': `url(${await this.getDataUrl()})`,
+            display: 'inline-block',
+            height: 'var(--container-height)',
             left: '50%',
             opacity: 0.5,
             position: 'relative',
             top: '50%',
             transform: `translate(-50%,-50%) rotate(${rotate}deg)`,
-            transformOrigin: 'center center',
-            width: `${el.offsetHeight * Math.sin(angle) + el.offsetWidth * Math.cos(angle)}px`
+            'transform-origin': 'center center',
+            width: 'var(--container-width)'
           }
 
     for (const name in containerStyle) {
@@ -396,17 +551,28 @@ export default class Watermark {
     }
 
     container.appendChild(watermark)
-    el.appendChild(container.cloneNode(true))
+
+    const cloneNode = container.cloneNode(true) as HTMLDivElement
+
+    rootEl.insertAdjacentElement('afterbegin', cloneNode)
+
+    return { originContainer: container, container: cloneNode }
   }
 }
 
-/** */
-function rotateWatermark(ctx: CanvasRenderingContext2D, rotateX: number, rotateY: number, rotate: number) {
-  ctx.translate(rotateX, rotateY)
-  ctx.rotate(Math.PI / 180 * Number(rotate))
-  ctx.translate(-rotateX, -rotateY)
+/**
+ * 设置样式
+ */
+function setStyle(target, name, value) {
+  target.style.setProperty(name, value.toString(), 'important')
 }
 
-function setStyle(target, name, value) {
-  target.style[name] = value
+/**
+ * 获取伪元素高度
+ */
+function getBeforeElementHeight(rootEl) {
+  const { height, float, position } = getComputedStyle(rootEl, ':before'),
+        isFloat = float !== 'none' || position === 'absolute'
+
+  return isFloat ? 0 : height
 }

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "checkJs": false, // 暂时关闭类型检测
+    "experimentalDecorators": true,
+    "jsx": "preserve",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "target": "ESNext",
+    "outDir": "temp",
+    "typeRoots": ["./types"]
+  },
+  "exclude": [
+    "node_modules",
+    "node_modules2",
+    "static",
+    "public"
+  ]
+}

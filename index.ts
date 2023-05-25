@@ -1,4 +1,3 @@
-/* eslint-disable valid-jsdoc */
 import patch from '@cailiao/watch-dom'
 
 interface Wait extends Promise<string> {
@@ -31,14 +30,11 @@ export default class Watermark {
   rotate = -37
   // 同一行水印之间的间距，单位为px
   gap = 100
-  zIndex = 999
+  zIndex = Number.MAX_SAFE_INTEGER
   canvas: HTMLCanvasElement
   #dataURL: string
   #waitDataURL: Wait
   #img: HTMLImageElement
-  #mounted = false
-  #container: HTMLDivElement
-  #unWatch: () => void
   sinA: number
   cosA: number
 
@@ -133,14 +129,26 @@ export default class Watermark {
     this.renderWatermark()
   }
 
-  /** */
+  /**
+   * 销毁水印
+   * @param {Function} unWatch 取消 Mutation 监听
+   * @param {Function} unWatchResize 取消 Resize 监听
+   * @param {HTMLDivCollection} container 水印容器
+   */
   destroy(unWatch: () => void, unWatchResize: () => void, container: HTMLDivElement) {
     unWatch()
     unWatchResize()
     container.remove()
   }
 
-  /** */
+  /**
+   * 绘制文本
+   * @param {Number} absLineHeight 文本行高的绝对值
+   * @param {Number} blockWidth 水印块的宽度
+   * @param {HTMLCanvasElement} canvas 画布
+   * @param {Number} canvasWidth 画布宽度
+   * @param {CanvasRenderingContext2D} ctx 画布上下文
+   */
   drawText({
     absLineHeight,
     blockWidth,
@@ -189,7 +197,9 @@ export default class Watermark {
   }
 
   /**
-   * 绘制文本
+   * 填充文本至画布
+   * @param {CanvasRenderingContext2D} ctx 画布上下文
+   * @param {Number} absLineHeight 文本行高的绝对值
    */
   fillTexts({ ctx, absLineHeight }: { ctx: CanvasRenderingContext2D; absLineHeight: number }) {
     const ratio = devicePixelRatio,
@@ -204,7 +214,16 @@ export default class Watermark {
     content?.forEach((text, index) => ctx.fillText(text, 0, 0 + index * absLineHeight * ratio))
   }
 
-  /** */
+  /**
+   * 绘制图片
+   * @param {Number} absLineHeight 文本行高的绝对值
+   * @param {Number} blockWidth 水印块的宽度
+   * @param {Number} canvasHeight 画布高度
+   * @param {Number} canvasWidth 画布宽度
+   * @param {CanvasRenderingContext2D} ctx 画布上下文
+   * @param {Number} imgWidth 图片宽度
+   * @param {Number} imgHeight 图片高度
+   */
   async drawImage({
     absLineHeight,
     blockWidth,
@@ -259,6 +278,7 @@ export default class Watermark {
 
   /**
    * 计算水印宽度
+   * @param {CanvasRenderingContext2D} ctx 画布上下文
    */
   async getCanvasSize(ctx: CanvasRenderingContext2D) {
     const { textblockWidth, textblockHeight, absLineHeight } = await this.getContentTextSize(ctx),
@@ -281,7 +301,10 @@ export default class Watermark {
     }
   }
 
-  /** */
+  /**
+   * 获取图片的宽高
+   * @return {Promise<{ imgWidth: Number, imgHeight: Number }>}} 图片的宽高
+   */
   async getImgSize() {
     const { image } = this,
           img = new Image(),
@@ -303,7 +326,11 @@ export default class Watermark {
     }
   }
 
-  /** */
+  /**
+   * 获取文本的宽高及行高的绝对值
+   * @param {CanvasRenderingContext2D} ctx 画布上下文
+   * @return {Promise<{ textblockWidth: Number, textblockHeight: Number, absLineHeight: Number }>} 文本的宽高及行高的绝对值
+   */
   async getContentTextSize(ctx: CanvasRenderingContext2D) {
     const { fontSize, content, fontFamily, lineHeight } = this
     var width = 0,
@@ -339,7 +366,10 @@ export default class Watermark {
     }
   }
 
-  /** */
+  /**
+   * 绘制水印
+   * @return {undefined}
+   */
   async renderWatermark() {
     const canvas = document.createElement('canvas'),
           ctx = canvas.getContext('2d'),
@@ -378,7 +408,10 @@ export default class Watermark {
     }
   }
 
-  /** */
+  /**
+   * 获取水印的dataURL
+   * @return {Promise<String>|String} 水印的dataURL
+   */
   async getDataUrl() {
     var result
     const dataURL = this.#dataURL
@@ -404,7 +437,10 @@ export default class Watermark {
     return result
   }
 
-  /** */
+  /**
+   * 设置水印的dataURL
+   * @param {String} newDataURL 水印的dataURL
+   */
   async setDataUrl(newDataURL) {
     if (!this.#dataURL && this.#waitDataURL) {
       this.#waitDataURL.resolve(newDataURL)
@@ -414,14 +450,21 @@ export default class Watermark {
     this.#dataURL = newDataURL
   }
 
-  /** */
+  /**
+   * 防止篡改水印
+   * @param {HTMLElement} rootEl 根元素
+   * @param {Object} closure 闭包
+   * @return {Function} 返回注销监听器的函数
+   */
   tamperProofing(rootEl: HTMLElement, closure: { container: HTMLDivElement; originContainer: HTMLDivElement }) {
     var { container, originContainer } = closure,
         timer1: number,
         timer2: number,
         unWatchContainer: () => void
 
-    /** */
+    /**
+     * 重新挂载水印元素
+     */
     function reMount() {
       container.remove()
       container = closure.container = originContainer.cloneNode(true) as HTMLDivElement
@@ -429,17 +472,46 @@ export default class Watermark {
       unWatchContainer(), watchContainer(container)
     }
 
-    /** */
+    /**
+     * 监听水印元素的变化
+     * @param {HTMLElement} el 水印元素
+     */
     function watchContainer(el) {
       unWatchContainer = el.$watch(
         record => {
-          record
-          // debugger
+          var legal = false
+          const { offsetHeight: height, offsetWidth: width } = rootEl
 
-          // 节流
-          clearTimeout(timer2)
-          // 监视container的属性是否发生变化
-          timer2 = setTimeout(() => reMount(), 35)
+          record.forEach(({ target, oldValue, type, attributeName }) => {
+            if (type === 'attributes' && attributeName === 'style') {
+              const diff = diffCSSStyle(oldValue, target.style.cssText)
+
+              /** */
+              ;(function findLegal() {
+                for (const name in diff) {
+                  const value = diff[name]
+
+                  switch (name) {
+                    case '--container-height':
+                      if (value === `${height}px !important`) legal = true
+                      break
+                    case '--container-width':
+                      if (value === `${width}px !important`) legal = true
+                      break
+                    default:
+                      return
+                  }
+                }
+              })()
+            }
+          })
+
+          if (!legal) {
+            // 节流
+            clearTimeout(timer2)
+            // 监视container的属性是否发生变化
+            timer2 = setTimeout(() => reMount(), 35)
+          }
         },
         { subtree: true, childList: true, attributes: true, attributeOldValue: true }
       )
@@ -468,33 +540,41 @@ export default class Watermark {
 
   /**
    * 在检测到rootEl的大小发生变化时重调用 createContianer 方法
+   * @param {HTMLElement} rootEl 根元素
+   * @param {Object} closure 闭包
+   * @return {Function} 返回注销监听器的函数
    */
   resize(rootEl, closure) {
-    var container = closure.container,
-        isImmideate = true,
+    var isImmideate = true,
         timer: number
-    const { cosA, sinA } = this,
-          unWatchResize = rootEl.$watchBox(records => {
-            // 节流
-            clearTimeout(timer)
-            timer = setTimeout(() => {
-              if (!isImmideate) {
-                const { width, height } = records[0].contentRect
+    const unWatchResize = rootEl.$watchBox(records => {
+      // 节流
+      if (!isImmideate) {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          const { container, originContainer } = closure,
+                { width, height } = records[0].contentRect
 
-                if (width && height) {
-                  container.style.setProperty('--container-height', `${height * cosA + width * sinA}px`)
-                  container.style.setProperty('--container-width', `${height * sinA + width * cosA}px`)
-                }
-              }
-            }, 35)
+          if (width && height) {
+            setStyle(container, '--container-height', `${height}px`)
+            setStyle(container, '--container-width', `${width}px`)
+            setStyle(originContainer, '--container-height', `${height}px`)
+            setStyle(originContainer, '--container-height', `${width}px`)
+          }
+        }, 35)
+      }
 
-            isImmideate = false
-          })
+      isImmideate = false
+    })
 
     return unWatchResize
   }
 
-  /**挂载水印元素 */
+  /**
+   * 挂载水印元素
+   * @param {HTMLElement} rootEl 根元素
+   * @return {Function} 返回注销水印挂载的函数
+   */
   async mount(rootEl: HTMLElement) {
     const closure: { container: HTMLDivElement; originContainer: HTMLDivElement } = await this.createContianer(rootEl),
           unWatch = this.tamperProofing(rootEl, closure),
@@ -503,9 +583,12 @@ export default class Watermark {
     return this.destroy.bind(null, unWatch, unWatchResize, closure)
   }
 
-  /** */
+  /**
+   * 创建水印元素
+   * @param {HTMLElement} rootEl 根元素
+   */
   async createContianer(rootEl) {
-    const { rotate, cosA, sinA } = this,
+    const { rotate, cosA, sinA, zIndex } = this,
           container = document.createElement('div'),
           watermark = document.createElement('div'),
           beforeElHeight = getBeforeElementHeight(rootEl),
@@ -514,32 +597,34 @@ export default class Watermark {
             display: 'block',
             margin: 0,
             visibility: 'visible',
-            'z-index': Number.MAX_SAFE_INTEGER
+            'z-index': zIndex
           },
           containerStyle = {
             ...commonStyle,
-            '--container-height': `${rootEl.offsetHeight * cosA + rootEl.offsetWidth * sinA}px`,
-            '--container-width': `${rootEl.offsetHeight * sinA + rootEl.offsetWidth * cosA}px`,
-            height: `${rootEl.offsetHeight}px`,
+            '--container-height': `${rootEl.offsetHeight}px`,
+            '--container-width': `${rootEl.offsetWidth}px`,
+            '--cosA': cosA,
+            '--sinA': sinA,
+            height: 'var(--container-height)',
             opacity: 1,
             overflow: 'hidden',
             'pointer-events': 'none',
             position: 'absolute',
             transform: `${beforeElHeight ? `translateY(-${beforeElHeight})` : ''}`,
-            width: `${rootEl.offsetWidth}px`
+            width: 'var(--container-width)'
           },
           watermarkStyle = {
             ...commonStyle,
             'background-image': `url(${await this.getDataUrl()})`,
             display: 'inline-block',
-            height: 'var(--container-height)',
+            height: 'calc(var(--container-height) * var(--cosA) + var(--container-width) * var(--sinA))',
             left: '50%',
             opacity: 0.5,
             position: 'relative',
             top: '50%',
             transform: `translate(-50%,-50%) rotate(${rotate}deg)`,
             'transform-origin': 'center center',
-            width: 'var(--container-width)'
+            width: 'calc(var(--container-height) * var(--sinA) + var(--container-width) * var(--cosA))'
           }
 
     for (const name in containerStyle) {
@@ -562,17 +647,58 @@ export default class Watermark {
 
 /**
  * 设置样式
+ * @param {HTMLElement} target 目标元素
+ * @param {String} name 样式名
+ * @param {String} value 样式值
  */
 function setStyle(target, name, value) {
   target.style.setProperty(name, value.toString(), 'important')
 }
 
 /**
- * 获取伪元素高度
+ * 获取伪元素布局占用高度，若不占用空间则返回0
+ * @param {HTMLElement} el 根元素
+ * @return {Number} 返回伪元素高度
  */
-function getBeforeElementHeight(rootEl) {
-  const { height, float, position } = getComputedStyle(rootEl, ':before'),
+function getBeforeElementHeight(el) {
+  const { height, float, position } = getComputedStyle(el, ':before'),
         isFloat = float !== 'none' || position === 'absolute'
 
   return isFloat ? 0 : height
+}
+
+/**
+ * 比较两个css文本的差异
+ * @param {String} oldStyle 旧样式
+ * @param {String} newStyle 新样式
+ * @return {Object} 返回差异对象
+ */
+function diffCSSStyle(oldStyle, newStyle) {
+  const result = {},
+        oldStyleObj = parseCSSText(oldStyle),
+        newStyleObj = parseCSSText(newStyle)
+
+  for (const name in newStyleObj) if (oldStyleObj[name] !== newStyleObj[name]) result[name] = newStyleObj[name]
+
+  for (const name in oldStyle)
+    if (!result.hasOwnProperty(name) && oldStyleObj[name] !== newStyleObj[name]) result[name] = newStyleObj[name]
+
+  return result
+}
+
+/**
+ * 解析css文本
+ * @param {String} cssText css文本
+ * @return {Object} 返回css对象
+ */
+function parseCSSText(cssText) {
+  const result = {}
+
+  cssText.split(';').forEach(item => {
+    const [name, value] = item.split(':')
+
+    if (name) result[name.trim()] = value.trim()
+  })
+
+  return result
 }

@@ -33,8 +33,7 @@
     "minor": "npm version minor && npm i",
     "major": "npm version major && npm i",
     "publish": "npm publish",
-    "postpublish": "git push origin master --follow-tags",
-    "toc": "doctoc --github --title \"# Changelog\" CHANGELOG.md"
+    "postpublish": "git push origin master --follow-tags"
   },
   "devDependencies": {
     "@babel/core": "latest",
@@ -52,6 +51,6 @@
     "lint-staged": "latest"
   },
   "dependencies": {
-    "@cailiao/watch-dom": "^0.1.2"
+    "@cailiao/watch-dom": "^0.1.4"
   }
 }

@@ -1,10 +1,11 @@
-import patch from '@cailiao/watch-dom'
+import { diffCSSStyle, getBeforeElementHeight, setStyle } from './utils'
+import { watch, watchBox } from '@cailiao/watch-dom'
+
+const { max, ceil, cos, sin, abs } = Math
 
 interface Wait extends Promise<string> {
   resolve?: (value: string) => void
 }
-
-const { max, ceil, cos, sin, abs } = Math
 
 /**
  * 水印
@@ -96,9 +97,6 @@ export default class Watermark {
             zIndex
           }
 
-    // 处理依赖
-    if (!Element.prototype.$watch || !Element.prototype.$watchBox) patch()
-
     // 处理image参数
     if (image) {
       this.content = []
@@ -133,12 +131,15 @@ export default class Watermark {
    * 销毁水印
    * @param {Function} unWatch 取消 Mutation 监听
    * @param {Function} unWatchResize 取消 Resize 监听
-   * @param {HTMLDivCollection} container 水印容器
+   * @param {Object} closure 闭包
    */
-  destroy(unWatch: () => void, unWatchResize: () => void, container: HTMLDivElement) {
+  destroy(unWatch: () => void, unWatchResize: () => void, closure: { container: HTMLElement }) {
+    const { container } = closure
+
     unWatch()
     unWatchResize()
     container.remove()
+    closure.container = undefined
   }
 
   /**
@@ -345,11 +346,20 @@ export default class Watermark {
     queueMicrotask(() => document.body.appendChild(pEl))
     // 获取行高的绝对值
     absLineHeight = await new Promise(resolve => {
-      const unWatch = pEl.$watchBox(record => {
+      var unWatch
+
+      /**
+       * 获取元素高度
+       * @param {ResizeObserverEntry[]} record
+       */
+      function getElHeight(record) {
         resolve(record[0].contentRect.height)
         unWatch()
         pEl.remove()
-      })
+      }
+
+      if (watchBox) unWatch = watchBox(pEl, getElHeight)
+      // 如何上面两行重构成一个函数调用
     })
 
     ctx.font = `${Number(fontSize)}px ${fontFamily}`
@@ -454,7 +464,7 @@ export default class Watermark {
    * 防止篡改水印
    * @param {HTMLElement} rootEl 根元素
    * @param {Object} closure 闭包
-   * @return {Function} 返回注销监听器的函数
+   * @return {Promise<Function>} 返回注销监听器的函数
    */
   tamperProofing(rootEl: HTMLElement, closure: { container: HTMLDivElement; originContainer: HTMLDivElement }) {
     var { container, originContainer } = closure,
@@ -477,7 +487,8 @@ export default class Watermark {
      * @param {HTMLElement} el 水印元素
      */
     function watchContainer(el) {
-      unWatchContainer = el.$watch(
+      unWatchContainer = watch(
+        el,
         record => {
           var legal = false
           const { offsetHeight: height, offsetWidth: width } = rootEl
@@ -517,7 +528,8 @@ export default class Watermark {
       )
     }
 
-    const unWatchRootEL = rootEl.$watch(
+    const unWatchRootEL = watch(
+      rootEl,
       () => {
         // 节流
         clearTimeout(timer1)
@@ -547,7 +559,7 @@ export default class Watermark {
   resize(rootEl, closure) {
     var isImmideate = true,
         timer: number
-    const unWatchResize = rootEl.$watchBox(records => {
+    const unWatchResize = watchBox(rootEl, records => {
       // 节流
       if (!isImmideate) {
         clearTimeout(timer)
@@ -573,7 +585,7 @@ export default class Watermark {
   /**
    * 挂载水印元素
    * @param {HTMLElement} rootEl 根元素
-   * @return {Function} 返回注销水印挂载的函数
+   * @return {Promise<Function>} 返回注销水印挂载的函数
    */
   async mount(rootEl: HTMLElement) {
     const closure: { container: HTMLDivElement; originContainer: HTMLDivElement } = await this.createContianer(rootEl),
@@ -643,62 +655,4 @@ export default class Watermark {
 
     return { originContainer: container, container: cloneNode }
   }
-}
-
-/**
- * 设置样式
- * @param {HTMLElement} target 目标元素
- * @param {String} name 样式名
- * @param {String} value 样式值
- */
-function setStyle(target, name, value) {
-  target.style.setProperty(name, value.toString(), 'important')
-}
-
-/**
- * 获取伪元素布局占用高度，若不占用空间则返回0
- * @param {HTMLElement} el 根元素
- * @return {Number} 返回伪元素高度
- */
-function getBeforeElementHeight(el) {
-  const { height, float, position } = getComputedStyle(el, ':before'),
-        isFloat = float !== 'none' || position === 'absolute'
-
-  return isFloat ? 0 : height
-}
-
-/**
- * 比较两个css文本的差异
- * @param {String} oldStyle 旧样式
- * @param {String} newStyle 新样式
- * @return {Object} 返回差异对象
- */
-function diffCSSStyle(oldStyle, newStyle) {
-  const result = {},
-        oldStyleObj = parseCSSText(oldStyle),
-        newStyleObj = parseCSSText(newStyle)
-
-  for (const name in newStyleObj) if (oldStyleObj[name] !== newStyleObj[name]) result[name] = newStyleObj[name]
-
-  for (const name in oldStyle)
-    if (!result.hasOwnProperty(name) && oldStyleObj[name] !== newStyleObj[name]) result[name] = newStyleObj[name]
-
-  return result
-}
-
-/**
- * 解析css文本
- * @param {String} cssText css文本
- * @return {Object} 返回css对象
- */
-function parseCSSText(cssText) {
-  const result = {}
-
-  cssText.split(';').forEach(item => {
-    const [name, value] = item.split(':')
-
-    if (name) result[name.trim()] = value.trim()
-  })
-
-  return result
 }

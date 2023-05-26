@@ -165,6 +165,7 @@ module.exports = {
     'newline-per-chained-call': 2, // 要求链式调用必须换行，ignoreChainWithDepth表示无需换行的最大调用深度，默认为2.
     'no-alert': 1, // 禁止使用alert confirm prompt
     'no-array-constructor': 0, // 禁止使用数组构造器
+    'no-async-promise-executor': 0, // 禁止使用异步函数作为Promise执行程序
     'no-bitwise': 0, //禁止使用按位运算符
     'no-caller': 0, //禁止使用arguments.caller或arguments.callee
     'no-case-declarations': 2, // 不允许在case中声明

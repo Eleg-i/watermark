@@ -18,17 +18,20 @@ function build(platform) {
  * @param {String} platform 构建的平台类型
  */
 function buildInFormat(format, platform) {
-  esbuild
-    .build({
-      bundle: true,
-      entryPoints: entry,
-      format,
-      minify: true,
-      outfile: `dist/${outfile}.${format}.${platform}.min.js`,
-      platform,
-      target: 'esnext'
-    })
-    .catch(() => process.exit(1))
+  const config = {
+    bundle: true,
+    entryPoints: entry,
+    format,
+    minify: true,
+    outfile: `dist/${outfile}.${format}.${platform}.min.js`,
+    platform,
+    target: 'esnext'
+  }
+
+  esbuild.build(config).catch(() => process.exit(1))
+  config.minify = false
+  config.outfile = `dist/${outfile}.${format}.${platform}.js`
+  esbuild.build(config).catch(() => process.exit(1))
 }
 
 // build('node')

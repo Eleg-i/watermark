@@ -44,7 +44,7 @@
       </div>
     </div>
 
-    <button>注销</button>
+    <button id="destroy1">注销</button>
 
     <div style="position: relative;">
       <p>其它内容</p>
@@ -73,7 +73,7 @@
       </div>
     </div>
 
-    <button>注销</button>
+    <button id="destroy2">注销</button>
 
     <p class="color">color</p>
 
@@ -89,12 +89,21 @@
       }),
         { canvas } = watermark,
         container = document.querySelector('#container'),
-        container2 = document.querySelector('#container2')
+        container2 = document.querySelector('#container2'),
+        btn1 = document.querySelector('#destroy1'),
+        btn2 = document.querySelector('#destroy2')
 
       canvas.style.border = '1px solid #000'
       document.body.append(canvas)
-      watermark.mount(container)
-      watermark.mount(container2)
+      const destroy1 = await watermark.mount(container),
+        destroy2 = await watermark.mount(container2)
+
+      btn1.addEventListener('click', () => {
+        destroy1()
+      })
+      btn2.addEventListener('click', () => {
+        destroy2()
+      })
     </script>
   </body>
 

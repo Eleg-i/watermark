@@ -9,6 +9,10 @@
     "index.ts"
   ],
   "outfile": "watermark",
+  "files": [
+    "dist",
+    "types/index.d.ts"
+  ],
   "keywords": [
     "watermark"
   ],

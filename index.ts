@@ -181,19 +181,6 @@ export default class Watermark {
     this.fillTexts({ ctx, absLineHeight })
     ctx.restore()
 
-    // /* 将左四分之一的图形移动至右方，然后再将上四分之一的图形移动至下方 */
-    // const clipLeft = ctx.getImageData(0, 0, ceil(canvasWidth / 4), canvasHeight),
-    //       clipRight = ctx.getImageData(ceil(canvasWidth / 4), 0, ceil(canvasWidth * 3 / 4), canvasHeight)
-
-    // ctx.putImageData(clipRight, 0, 0)
-    // ctx.putImageData(clipLeft, ceil(canvasWidth * 3 / 4), 0)
-
-    // const clipTop = ctx.getImageData(0, 0, canvasWidth, ceil(canvasHeight / 4)),
-    //       clipBottom = ctx.getImageData(0, ceil(canvasHeight / 4), canvasWidth, ceil(canvasHeight * 3 / 4))
-
-    // ctx.putImageData(clipBottom, 0, 0)
-    // ctx.putImageData(clipTop, 0, ceil(canvasHeight * 3 / 4))
-
     this.setDataUrl(canvas.toDataURL())
   }
 
@@ -359,7 +346,6 @@ export default class Watermark {
       }
 
       if (watchBox) unWatch = watchBox(pEl, getElHeight)
-      // 如何上面两行重构成一个函数调用
     })
 
     ctx.font = `${Number(fontSize)}px ${fontFamily}`

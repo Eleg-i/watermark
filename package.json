@@ -56,5 +56,8 @@
   },
   "dependencies": {
     "@cailiao/watch-dom": "^0.1.4"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }

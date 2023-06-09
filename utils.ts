@@ -5,7 +5,7 @@
  * @param {String} value 样式值
  */
 export function setStyle(target, name, value) {
-  target.style.setProperty(name, value.toString(), 'important')
+  if (target) target.style.setProperty(name, value.toString(), 'important')
 }
 
 /**
@@ -47,11 +47,44 @@ export function diffCSSStyle(oldStyle, newStyle) {
 function parseCSSText(cssText) {
   const result = {}
 
-  cssText.split(';').forEach(item => {
-    const [name, value] = item.split(':')
+  cssText
+    .split(';')
+    .filter((item, index, self) => {
+      if (item.endsWith('"data:image/png')) {
+        self[index + 1] = `${item};${self[index + 1]}}`
 
-    if (name) result[name.trim()] = value.trim()
-  })
+        return false
+      }
+
+      return true
+    })
+    .forEach(item => {
+      const [name, value] = item.split(':')
+
+      if (name) result[name.trim()] = value.trim()
+    })
 
   return result
+}
+
+/**
+ * 获取元素的padding水平方向和垂直方向的总和
+ * @param {HTMLElement} el 目标元素
+ * @return {Object} 返回一个对象包含水平方向和垂直方向的总和
+ */
+export function getElPadding(el) {
+  // 将el的计算样式中的padding左右值和上下值分别相加，得到padding水平方向和垂直方向的总和，然后返回一个对象包含这两个值
+  const { paddingTop, paddingRight, paddingBottom, paddingLeft } = getComputedStyle(el)
+  var hPadding = parseFloat(paddingLeft.replace('px', '')) + parseFloat(paddingRight.replace('px', '')),
+      vPadding = parseFloat(paddingTop.replace('px', '')) + parseFloat(paddingBottom.replace('px', ''))
+
+  if (Number.isNaN(hPadding)) {
+    hPadding = 0
+  }
+
+  if (Number.isNaN(vPadding)) {
+    vPadding = 0
+  }
+
+  return { hPadding, vPadding }
 }

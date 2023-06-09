@@ -1,4 +1,4 @@
-import { diffCSSStyle, getBeforeElementHeight, setStyle } from './utils'
+import { diffCSSStyle, getBeforeElementHeight, getElPadding, setStyle } from './utils'
 import { watch, watchBox } from '@cailiao/watch-dom'
 
 const { max, ceil, cos, sin, abs } = Math
@@ -11,6 +11,8 @@ interface Wait extends Promise<string> {
  * 水印
  */
 export default class Watermark {
+  blockWidth: number
+  blockHeight: number
   className: string
   color: string
   content: string[] = ['@cailiao/watermark']
@@ -45,7 +47,6 @@ export default class Watermark {
    */
   constructor(
     {
-      className,
       content,
       font = {},
       gap,
@@ -55,17 +56,16 @@ export default class Watermark {
       rotate,
       zIndex
     }: {
-      className?: string
       content?: string | string[]
       font?: {
         color?: string
         fontFamily?: string
         fontSize?: string
-        fontStyle?: 'none' | 'normal' | 'italic' | 'oblique'
-        fontWeight?: 'normal' | 'light' | 'weight' | number
+        fontStyle?: 'normal' | 'italic' | 'oblique'
+        fontWeight?: 'normal' | 'lighter' | 'bolder' | 'bold' | number
       }
       gap?: number
-      image?: string | object
+      image?: string | { src: string; offset?: [number, number] }
       lineHeight?: string
       offset?: [number, number]
       rotate?: number
@@ -82,7 +82,6 @@ export default class Watermark {
       fontFamily = 'sans-serif'
     } = font,
           args = {
-            className,
             color,
             content,
             fontFamily,
@@ -99,12 +98,14 @@ export default class Watermark {
 
     // 处理image参数
     if (image) {
-      this.content = []
-      if (typeof image === 'string') args.image = { src: image, offset: [0] }
+      if (typeof image === 'string') {
+        this.content = []
+        args.image = { src: image, offset: [0, 0] }
+      } else if (image.src) this.content = []
     }
 
     // 处理content参数
-    if (content && typeof content === 'string') {
+    if (content && typeof content === 'string' && content.trim() !== '') {
       const newContent = content.replace(/\\n+/g, '\n')
 
       args.content = newContent.split('\n')
@@ -121,8 +122,8 @@ export default class Watermark {
           angle = -newRotate / 180 * Math.PI
 
     this.angle = angle
-    this.sinA = newRotate % 180 ? abs(sin(angle)) : 0
-    this.cosA = newRotate === 0 || newRotate % 90 ? abs(cos(angle)) : 0
+    this.sinA = abs(sin(angle))
+    this.cosA = abs(cos(angle))
 
     this.renderWatermark()
   }
@@ -192,9 +193,9 @@ export default class Watermark {
   fillTexts({ ctx, absLineHeight }: { ctx: CanvasRenderingContext2D; absLineHeight: number }) {
     const ratio = devicePixelRatio,
           mergedFontSize = Number(this.fontSize) * ratio,
-          { content, fontFamily } = this
+          { content, fontFamily, fontStyle, lineHeight, fontWeight } = this
 
-    ctx.font = `${this.fontStyle} normal ${this.fontWeight} ${mergedFontSize}px ${fontFamily}`
+    ctx.font = `${fontStyle} normal ${fontWeight} ${mergedFontSize}px / ${lineHeight} ${fontFamily}`
     ctx.fillStyle = this.color
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
@@ -241,7 +242,6 @@ export default class Watermark {
           transfOffsetY = ceil(offsetY),
           imgOffsetHeight = imgHeight + absLineHeight - mergedFontSize
 
-    // debugger
     /**
      * 先于居中绘制图片
      * 然后根据偏移量进行偏移
@@ -270,11 +270,13 @@ export default class Watermark {
    */
   async getCanvasSize(ctx: CanvasRenderingContext2D) {
     const { textblockWidth, textblockHeight, absLineHeight } = await this.getContentTextSize(ctx),
-          { imgWidth = 0, imgHeight = 0 } = this.image ? await this.getImgSize() : {}
+          { imgWidth = 0, imgHeight = 0 } = this.image.src ? await this.getImgSize() : {},
+          blockWidth = this.blockWidth = max(textblockWidth, imgWidth),
+          blockHeight = this.blockHeight = textblockHeight + imgHeight
 
     return {
-      blockWidth: max(textblockWidth, imgWidth),
-      blockHeight: textblockHeight + imgHeight,
+      blockWidth,
+      blockHeight,
       textblockWidth,
       absLineHeight,
       imgWidth,
@@ -298,7 +300,10 @@ export default class Watermark {
           img = new Image(),
           waitOnLoad = new Promise((resolve, reject) => {
             img.addEventListener('load', resolve)
-            img.addEventListener('error', reject)
+            img.addEventListener('error', event => {
+              reject(event)
+              console.error('图片加载失败！')
+            })
           })
 
     img.crossOrigin = 'anonymous'
@@ -382,7 +387,7 @@ export default class Watermark {
       canvas.setAttribute('width', `${canvasWidth}px`)
       canvas.setAttribute('height', `${canvasHeight}px`)
 
-      if (image)
+      if (image.src)
         this.drawImage({
           absLineHeight,
           blockWidth,
@@ -454,60 +459,94 @@ export default class Watermark {
    */
   tamperProofing(rootEl: HTMLElement, closure: { container: HTMLDivElement; originContainer: HTMLDivElement }) {
     var { container, originContainer } = closure,
-        timer1: number,
-        timer2: number,
+        timer1: ReturnType<typeof setTimeout>,
+        timer2: ReturnType<typeof setTimeout>,
         unWatchContainer: () => void
 
     /**
      * 重新挂载水印元素
      */
     function reMount() {
-      container.remove()
-      container = closure.container = originContainer.cloneNode(true) as HTMLDivElement
-      rootEl.insertAdjacentElement('afterbegin', container)
-      unWatchContainer(), watchContainer(container)
+      if (container) {
+        container.remove()
+        container = closure.container = originContainer.cloneNode(true) as HTMLDivElement
+        rootEl.insertAdjacentElement('afterbegin', container)
+        unWatchContainer(), watchContainer(container)
+      }
     }
 
     /**
      * 监听水印元素的变化
-     * @param {HTMLElement} el 水印元素
+     * @param {HTMLElement} container 水印容器元素
      */
-    function watchContainer(el) {
+    function watchContainer(container) {
+      const positionStatus = {
+        top: getComputedStyle(container).top,
+        left: getComputedStyle(container).left
+      }
+
       unWatchContainer = watch(
-        el,
+        container,
         record => {
-          var legal = false
-          const { offsetHeight: height, offsetWidth: width } = rootEl
+          if (container) {
+            let legal = false
+            const { offsetHeight: height, offsetWidth: width } = rootEl,
+                  { hPadding, vPadding } = getElPadding(rootEl)
 
-          record.forEach(({ target, oldValue, type, attributeName }) => {
-            if (type === 'attributes' && attributeName === 'style') {
-              const diff = diffCSSStyle(oldValue, target.style.cssText)
+            record.forEach(({ target, oldValue, type, attributeName }) => {
+              record
+              if (type === 'attributes' && attributeName === 'style') {
+                const diff = diffCSSStyle(oldValue, target.style.cssText)
 
-              /** */
-              ;(function findLegal() {
-                for (const name in diff) {
-                  const value = diff[name]
+                /** */
+                ;(function findLegal() {
+                  if (Object.keys(diff).length === 0) {
+                    const { top, left } = getComputedStyle(target),
+                          { top: oldTop, left: oldLeft } = positionStatus
 
-                  switch (name) {
-                    case '--container-height':
-                      if (value === `${height}px !important`) legal = true
-                      break
-                    case '--container-width':
-                      if (value === `${width}px !important`) legal = true
-                      break
-                    default:
-                      return
+                    if (oldTop !== top) {
+                      setStyle(container, '--root-padding-horizontal', `${hPadding}px`)
+                      positionStatus.top = top
+                    }
+
+                    if (oldLeft !== left) {
+                      setStyle(container, '--root-padding-vertical', `${vPadding}px`)
+                      positionStatus.left = left
+                    }
+
+                    return
                   }
-                }
-              })()
-            }
-          })
 
-          if (!legal) {
-            // 节流
-            clearTimeout(timer2)
-            // 监视container的属性是否发生变化
-            timer2 = setTimeout(() => reMount(), 35)
+                  for (const name in diff) {
+                    const value = diff[name]
+
+                    switch (name) {
+                      case '--container-height':
+                        if (value === `${height}px !important`) legal = true
+                        break
+                      case '--container-width':
+                        if (value === `${width}px !important`) legal = true
+                        break
+                      case '--root-padding-horizontal':
+                        if (value === `${hPadding}px !important`) legal = true
+                        break
+                      case '--root-padding-vertical':
+                        if (value === `${vPadding}px !important`) legal = true
+                        break
+                      default:
+                        return
+                    }
+                  }
+                })()
+              }
+            })
+
+            if (!legal) {
+              // 节流
+              clearTimeout(timer2)
+              // 监视container的属性是否发生变化
+              timer2 = setTimeout(() => reMount(), 35)
+            }
           }
         },
         { subtree: true, childList: true, attributes: true, attributeOldValue: true }
@@ -544,14 +583,14 @@ export default class Watermark {
    */
   resize(rootEl, closure) {
     var isImmideate = true,
-        timer: number
+        timer: ReturnType<typeof setTimeout>
     const unWatchResize = watchBox(rootEl, records => {
       // 节流
       if (!isImmideate) {
         clearTimeout(timer)
         timer = setTimeout(() => {
           const { container, originContainer } = closure,
-                { width, height } = records[0].contentRect
+                { inlineSize: width, blockSize: height } = records[0].borderBoxSize[0]
 
           if (width && height) {
             setStyle(container, '--container-height', `${height}px`)
@@ -574,11 +613,39 @@ export default class Watermark {
    * @return {Promise<Function>} 返回注销水印挂载的函数
    */
   async mount(rootEl: HTMLElement) {
-    const closure: { container: HTMLDivElement; originContainer: HTMLDivElement } = await this.createContianer(rootEl),
-          unWatch = this.tamperProofing(rootEl, closure),
+    const closure: { container: HTMLDivElement; originContainer: HTMLDivElement } = await this.createContianer(rootEl)
+
+    this.setRootELMode(rootEl)
+    const unWatch = this.tamperProofing(rootEl, closure),
           unWatchResize = this.resize(rootEl, closure)
 
     return this.destroy.bind(null, unWatch, unWatchResize, closure)
+  }
+
+  /**
+   * 设置根元素的定位模式
+   * @param {HTMLElement} rootEl 根元素
+   */
+  setRootELMode(rootEl) {
+    if (rootEl) {
+      const { position } = getComputedStyle(rootEl)
+
+      if (position === 'static') rootEl.style.setProperty('position', 'relative', 'important')
+    }
+
+    watch(
+      rootEl,
+      records => {
+        records.forEach(({ target, attributeName }) => {
+          if (attributeName === 'style') {
+            const { position } = getComputedStyle(target)
+
+            if (position === 'static') target.style.setProperty('position', 'relative', 'important')
+          }
+        })
+      },
+      { attributes: true, attributeFilter: ['style'] }
+    )
   }
 
   /**
@@ -586,34 +653,53 @@ export default class Watermark {
    * @param {HTMLElement} rootEl 根元素
    */
   async createContianer(rootEl) {
-    const { rotate, cosA, sinA, zIndex } = this,
+    // 先等待图形数据，图形数据绘制完全后再计算父元素样式，利用 Canvas 的绘制来等待导航的结束
+    const dataURL = await this.getDataUrl(),
+          { rotate, cosA, sinA, zIndex } = this,
           container = document.createElement('div'),
           watermark = document.createElement('div'),
           beforeElHeight = getBeforeElementHeight(rootEl),
           commonStyle = {
             'clip-path': 'none',
             display: 'block',
+            filter: 'none',
             margin: 0,
+            mark: 'none',
             visibility: 'visible',
             'z-index': zIndex
           },
+          { hPadding, vPadding } = getElPadding(rootEl),
           containerStyle = {
             ...commonStyle,
             '--container-height': `${rootEl.offsetHeight}px`,
             '--container-width': `${rootEl.offsetWidth}px`,
             '--cosA': cosA,
+            '--root-padding-horizontal': `${hPadding}px`,
+            '--root-padding-vertical': `${vPadding}px`,
             '--sinA': sinA,
-            height: 'var(--container-height)',
+            height: 'calc(var(--container-height) - var(--root-padding-horizontal))',
             opacity: 1,
             overflow: 'hidden',
             'pointer-events': 'none',
             position: 'absolute',
             transform: `${beforeElHeight ? `translateY(-${beforeElHeight})` : ''}`,
-            width: 'var(--container-width)'
+            width: 'calc(var(--container-width) - var(--root-padding-vertical))'
           },
           watermarkStyle = {
             ...commonStyle,
-            'background-image': `url(${await this.getDataUrl()})`,
+            get background() {
+              return `${this['background-origin']} ${this['background-clip']} ${this['background-color']} ${this['background-image']}
+               ${this['background-repeat']} ${this['background-attachment']} ${this['background-position']} / ${this['background-size']}`
+            },
+            'background-attachment': 'fixed',
+            'background-blend-mode': 'luminosity',
+            'background-clip': 'border-box',
+            'background-color': 'transparent',
+            'background-image': `url(${dataURL})`,
+            'background-origin': 'border-box',
+            'background-position': 'center',
+            'background-repeat': 'repeat',
+            'background-size': 'auto',
             display: 'inline-block',
             height: 'calc(var(--container-height) * var(--cosA) + var(--container-width) * var(--sinA))',
             left: '50%',

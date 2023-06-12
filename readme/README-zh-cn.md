@@ -14,13 +14,13 @@
 npm i @cailiao/watermark
 ```
 
-#### 导入
+## 导入
 
 ```javascript
 import Watermark from '@cailiao/watermark'
 ```
 
-#### 使用
+## 使用
 
 ```javascript
 const watermark = new Watermark({
@@ -47,7 +47,7 @@ const destroy = await watermark.mount(container)
 
   - **`font`** ：`Object`类型，可选，字体，font的属性如下：
 
-      - **`color`**：`String类型`，可选，字体颜色，要求是符合 web css 规范的颜色字符串，默认值为`hsla(0, 0%, 50%, 0.5)`。
+      - **`color`**：`String`类型，可选，字体颜色，要求是符合 web css 规范的颜色字符串，默认值为`hsla(0, 0%, 50%, 0.5)`。
 
       - **`fontFamily`**：`String`类型，可选，要求是符合 web css 规范的字体字符串，且要求字体本地可用，默认值为`sans-serif`。
 
@@ -59,14 +59,20 @@ const destroy = await watermark.mount(container)
 
   - **`gap`**：`Number`类型，可选，水印之间的列间距，单位为像素，默认为`100`.
 
-  - **`image`**： `String`类型，可选，图片URL，支持DataURL。
+  - **`image`**： `String|Object`类型，可选，图片URL，支持DataURL。当为对象类型时，属性如下：
+
+      - **`alpha`**：`Number`类型，可选，透明度，默认为1.
+
+      - **`src`**：`String`类型，可选，图片地址，支持DataURL。
+
+      - **`offset`**：`Arrary<Number>`类型，可选，图片相对于默认位置的偏移，单位为像素。第一成员为X轴偏移量，第二成员为Y轴偏移量，默认为 [0, 0].
 
   - **`lineHeight`**： `String|Number`类型，可选，文本行高，要求是符合 web css 规范的 line-height 字符串或数值，默认值为1.5.
-
+  
   - **`offset`** `Arrary<Number>`类型，可选，水印相邻行的偏移量，单位为像素。第一成员为X轴偏移量，第二成员为Y轴偏移量，缺省表示0，默认为`[100, 100]`。
-
+  
   - **`rotate`** `Number`类型，可选，旋转角度，单位为角度，默认为`-37`或`323`。
-
+  
   - **`zIndex`** `Number`类型，可选，定位叠层值，可选值为符合 web css 规范的 z-index 数值。默认为`Number.MAX_SAFE_INTEGER`.
 
 

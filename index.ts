@@ -23,6 +23,7 @@ export default class Watermark {
   fontWeight: string
   lineHeight = 1.5
   image: {
+    alpha: number
     src: string
     // 图像水印相对于默认位置的偏移量，单位为px，第一个元素为水平偏移量，第二个元素为垂直偏移量（旋转后）
     offset: [number, number]
@@ -65,7 +66,7 @@ export default class Watermark {
         fontWeight?: 'normal' | 'lighter' | 'bolder' | 'bold' | number
       }
       gap?: number
-      image?: string | { src: string; offset?: [number, number] }
+      image?: string | { src: string; offset?: [number, number]; alpha?: number }
       lineHeight?: string
       offset?: [number, number]
       rotate?: number
@@ -100,7 +101,7 @@ export default class Watermark {
     if (image) {
       if (typeof image === 'string') {
         this.content = []
-        args.image = { src: image, offset: [0, 0] }
+        args.image = { src: image, offset: [0, 0], alpha: 1 }
       } else if (image.src) this.content = []
     }
 
@@ -234,6 +235,7 @@ export default class Watermark {
     const { offset, image } = this,
           img = this.#img,
           mergedFontSize = Number(this.fontSize) * devicePixelRatio,
+          { alpha = 1 } = image || {},
           [imgOffsetX = 0, imgOffsetY = 0] = image.offset,
           transfImgOffsetX = ceil((imgOffsetX % canvasWidth + canvasWidth) % canvasWidth),
           transfImgOffsetY = ceil((imgOffsetY % canvasHeight + canvasHeight) % canvasHeight),
@@ -249,6 +251,7 @@ export default class Watermark {
      */
     ctx.translate(0, imgOffsetHeight)
     ctx.save()
+    ctx.globalAlpha = alpha
     ctx.translate(blockWidth / 2 - imgWidth / 2, -imgOffsetHeight)
     ctx.translate(transfImgOffsetX, transfImgOffsetY)
     ctx.drawImage(img, 0, 0, imgWidth, imgHeight)
@@ -293,7 +296,7 @@ export default class Watermark {
 
   /**
    * 获取图片的宽高
-   * @return {Promise<{ imgWidth: Number, imgHeight: Number }>}} 图片的宽高
+   * @return {Promise<{ imgWidth: Number, imgHeight: Number }>} 图片的宽高
    */
   async getImgSize() {
     const { image } = this,

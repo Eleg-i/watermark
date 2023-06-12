@@ -21,7 +21,7 @@ export default class Watermark {
   fontSize: string
   fontStyle: string
   fontWeight: string
-  lineHeight = '20px'
+  lineHeight = 1.5
   image: {
     src: string
     // 图像水印相对于默认位置的偏移量，单位为px，第一个元素为水平偏移量，第二个元素为垂直偏移量（旋转后）
@@ -60,7 +60,7 @@ export default class Watermark {
       font?: {
         color?: string
         fontFamily?: string
-        fontSize?: string
+        fontSize?: number | string
         fontStyle?: 'normal' | 'italic' | 'oblique'
         fontWeight?: 'normal' | 'lighter' | 'bolder' | 'bold' | number
       }

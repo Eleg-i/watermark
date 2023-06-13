@@ -1,0 +1,6 @@
+[submodule "vue2-component"]
+	path = package/vue2-component
+	url = https://github.com/Eleg-i/watermark-vue2-component
+[submodule "watermark-hepler"]
+	path = package/watermark-hepler
+	url = https://github.com/Eleg-i/watermark-hepler

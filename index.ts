@@ -273,7 +273,7 @@ export default class Watermark {
    */
   async getCanvasSize(ctx: CanvasRenderingContext2D) {
     const { textblockWidth, textblockHeight, absLineHeight } = await this.getContentTextSize(ctx),
-          { imgWidth = 0, imgHeight = 0 } = this.image.src ? await this.getImgSize() : {},
+          { imgWidth = 0, imgHeight = 0 } = this.image?.src ? await this.getImgSize() : {},
           blockWidth = this.blockWidth = max(textblockWidth, imgWidth),
           blockHeight = this.blockHeight = textblockHeight + imgHeight
 
@@ -390,7 +390,7 @@ export default class Watermark {
       canvas.setAttribute('width', `${canvasWidth}px`)
       canvas.setAttribute('height', `${canvasHeight}px`)
 
-      if (image.src)
+      if (image?.src)
         this.drawImage({
           absLineHeight,
           blockWidth,

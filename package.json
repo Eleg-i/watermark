@@ -1,6 +1,6 @@
 {
   "name": "@cailiao/watermark",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "一个水印插件。(A watermark plugin.)",
   "type": "module",
   "module": "dist/watermark.esm.browser.min.js",

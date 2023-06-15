@@ -1,4 +1,4 @@
-import { diffCSSStyle, getBeforeElementHeight, getElPadding, setStyle } from './utils'
+import { diffCSSStyle, getElPadding, setStyle } from './utils'
 import { watch, watchBox } from '@cailiao/watch-dom'
 
 const { max, ceil, cos, sin, abs } = Math
@@ -592,14 +592,20 @@ export default class Watermark {
       if (!isImmideate) {
         clearTimeout(timer)
         timer = setTimeout(() => {
-          const { container, originContainer } = closure,
-                { inlineSize: width, blockSize: height } = records[0].borderBoxSize[0]
+          const { container, originContainer } = closure
 
-          if (width && height) {
-            setStyle(container, '--container-height', `${height}px`)
-            setStyle(container, '--container-width', `${width}px`)
-            setStyle(originContainer, '--container-height', `${height}px`)
-            setStyle(originContainer, '--container-height', `${width}px`)
+          if (container) {
+            const { inlineSize: width, blockSize: height } = records[0].borderBoxSize[0],
+                  currentStyle = getComputedStyle(container),
+                  currentHeight = currentStyle.getPropertyValue('--container-height'),
+                  currentWidth = currentStyle.getPropertyValue('--container-width')
+
+            if (width && height && currentHeight !== `${height}px` && currentWidth !== `${width}px`) {
+              setStyle(container, '--container-height', `${height}px`)
+              setStyle(container, '--container-width', `${width}px`)
+              setStyle(originContainer, '--container-height', `${height}px`)
+              setStyle(originContainer, '--container-height', `${width}px`)
+            }
           }
         }, 35)
       }
@@ -661,7 +667,6 @@ export default class Watermark {
           { rotate, cosA, sinA, zIndex } = this,
           container = document.createElement('div'),
           watermark = document.createElement('div'),
-          beforeElHeight = getBeforeElementHeight(rootEl),
           commonStyle = {
             'clip-path': 'none',
             display: 'block',
@@ -680,13 +685,14 @@ export default class Watermark {
             '--root-padding-horizontal': `${hPadding}px`,
             '--root-padding-vertical': `${vPadding}px`,
             '--sinA': sinA,
-            height: 'calc(var(--container-height) - var(--root-padding-horizontal))',
+            bottom: 0,
+            left: 0,
             opacity: 1,
             overflow: 'hidden',
             'pointer-events': 'none',
             position: 'absolute',
-            transform: `${beforeElHeight ? `translateY(-${beforeElHeight})` : ''}`,
-            width: 'calc(var(--container-width) - var(--root-padding-vertical))'
+            right: 0,
+            top: 0
           },
           watermarkStyle = {
             ...commonStyle,

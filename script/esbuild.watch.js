@@ -24,7 +24,7 @@ function buildInFormat(format, platform) {
       entryPoints: entry,
       format,
       minify: false,
-      outfile: `dist/${outfile}.${format}.${platform}.min.js`,
+      outfile: `dist/${outfile}.${format}.${platform}.js`,
       platform,
       target: 'es2022',
       watch: {
